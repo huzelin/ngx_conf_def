@@ -7,4 +7,6 @@ a simple conf definition module for NginX
 Directives:
 
 ==Config Def/Use==
-def conf_define_function conf_define_value
+def macro_name ""
+ default: none
+ context: http, server, location
