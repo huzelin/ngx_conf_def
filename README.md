@@ -5,7 +5,7 @@ ngx_conf_def
 feature
 ==========================
 * def support in Nginx config, facilitate and enjoy configuration.
-* binary data file shm-memory management and on-line reload support(AIO is used).
+* binary data file shm-memory management and on-line reload support(AIO support).
 
 directives
 ==========================
