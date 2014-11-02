@@ -4,6 +4,13 @@ ngx_conf_def is a simple conf definition module for NginX, and brings "def", "us
 
 Content Handler Directives
 ==========================
+```nginx
+
+  location /hello {
+    default_type text/plain;
+    echo hello;
+  }
+```
 ...
 syntax: def macro_func def_config_str
 default: none
