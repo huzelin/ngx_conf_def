@@ -234,8 +234,6 @@ Next:
 ngx_int_t 
 ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf)
 {
-  ngx_log_stderr(0, "is executing datach: %d %d", cdf->shm_large_version, cdf->shm_headers->shm_large_version);
- 
   if(cdf->shm_large_version != cdf->shm_headers->shm_large_version){
     ngx_int_t r1 = ngx_http_conf_def_attach_data_file_impl(cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1);
     cdf->shm_large_version = cdf->shm_headers->shm_large_version;
