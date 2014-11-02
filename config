@@ -10,7 +10,8 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS \
                 "
 
 NGX_ADDON_DEPS="$NGX_ADDON_DEPS \
-                $ngx_addon_dir/src/ngx_http_conf_def_api.h"
+                $ngx_addon_dir/include/ngx_http_conf_def_api.h \
+                $ngx_addon_dir/include/ngx_http_conf_def_module.h"
 
 HTTP_INCS="$HTTP_INCS \
-           $ngx_addon_dir/src"
+           $ngx_addon_dir/include"

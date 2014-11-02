@@ -13,5 +13,6 @@ extern ngx_int_t ngx_http_conf_def_get_int_with_default(ngx_conf_t* cf, ngx_str_
 extern ngx_array_t* ngx_http_conf_def_get_group_ptr_array(ngx_str_t group_name);
 extern ngx_str_t    ngx_http_conf_def_get_data_file_nickname(ngx_array_t* group_ptr_array, size_t idx);
 extern u_char*      ngx_http_conf_def_get_data_file_ptr(ngx_array_t* group_ptr_array, size_t idx);
+extern ngx_http_conf_def_data_file_kv_pair_t* ngx_http_conf_def_get_data_file_idx(ngx_str_t group_name, ngx_str_t data_file_nick_name, ngx_uint_t* idx);
 
 #endif
