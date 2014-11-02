@@ -1,6 +1,6 @@
 ngx_conf_def
 ============
-ngx_conf_def is a simple conf definition module for NginX
+ngx_conf_def is a simple conf definition module for NginX, and brings 'def', 'use_def', "dec_cfg_block"
 
 ## Directives:
 * **def**
