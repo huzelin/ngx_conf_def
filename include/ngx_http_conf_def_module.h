@@ -115,7 +115,7 @@ typedef struct ngx_conf_def_aio_pack_s{
 }ngx_conf_def_aio_pack_t;
 
 #define NGX_HTTP_CONF_DEF_AIO_PACK_DATA(pool,kv_pair,cdf,shm_header_ptr,shm_ptr,shm_size,shm_id, r) \
-ngx_conf_def_aio_pack_t* aio_pack = ngx_palloc(pool, sizeof(ngx_conf_def_aio_pack_t)); \
+ngx_conf_def_aio_pack_t* aio_pack = ngx_pcalloc(pool, sizeof(ngx_conf_def_aio_pack_t)); \
 aio_pack->kv_pair = kv_pair; \
 aio_pack->cdf = cdf; \
 aio_pack->shm_header_ptr = shm_header_ptr; \
