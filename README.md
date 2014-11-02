@@ -5,10 +5,11 @@ ngx_conf_def is a simple conf definition module for NginX, and brings "def", "us
 Directives
 ==========================
 ```nginx
-**syntax**: **def** macro_func macro_impl
-**context**: http server location
-**description**: config def support, which facitate configuation.
-**examle**:(L means listen 2080 config)
+syntax: def macro_func macro_impl
+context: http server location
+description: config def support, which facitate configuation.
+
+examle:(L means listen 2080 config)
   def LISTEN(num) "listen @{num};";
   def L "@{LISTEN(2080)}";
 ```
