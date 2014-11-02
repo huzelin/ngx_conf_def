@@ -8,14 +8,16 @@ ngx_conf_def is a simple conf definition module for NginX
 syntax: def macro_func def_config_str
 default: none
 context: http, server, location
-description: define def_config_str as macro_func, take for example: def LS(num) "listen ${num};"; means LS(num) is listen port on num.  
+description: define def_config_str as macro_func, take for example: 
+def LS(num) "listen ${num};"; means LS(num) is listen port on num.  
 ```
 * **use_def**
 ```sh
 syntax: use_def macro_func(func_args)
 default: none
 context: http, server, location
-description: use def config. take for example: use_def LS(2004); means use listen on port 2004.
+description: use def config. take for example: 
+use_def LS(2004); means use listen on port 2004.
 ```
 *  **def_cfg_block**
 ```sh
