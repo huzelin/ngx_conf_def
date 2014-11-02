@@ -4,8 +4,8 @@ ngx_conf_def is a simple conf definition module for NginX, and brings "def", "us
 
 Directives
 ==========================
-**syntax**: **def** macro_func macro_impl
-**context**: http sever location
+1.**syntax**: **def** macro_func macro_impl
+1.**context**: http sever location
 ```nginx
   def LISTEN(num) "listen @{num};";
   def L "@{LISTEN(2080)}";
