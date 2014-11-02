@@ -2,6 +2,7 @@
 #include "ngx_http_conf_def_api.h"
 
 extern ngx_module_t ngx_http_conf_def_module;
+extern ngx_http_conf_def_t* ngx_global_cdf; 
 
 ngx_http_conf_def_cfg_block_kv_pair_t*
 ngx_http_conf_def_get_kv_pair(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key)
@@ -82,3 +83,46 @@ ngx_http_conf_def_get_int_with_default(ngx_conf_t* cf, ngx_str_t section, ngx_st
   }
   return ret_int*flag;  
 }
+
+ngx_array_t* 
+ngx_http_conf_def_get_group_ptr_array(ngx_str_t group_name)
+{
+  ngx_http_conf_def_data_group_t* group;
+  uint32_t hash;
+  char* rv;
+
+  hash = ngx_crc32_long(group_name.data, group_name.len);
+  group = (ngx_http_conf_def_data_group_t*)ngx_str_rbtree_lookup(&ngx_global_cdf->data_groups, &group_name, hash);
+
+  if(group == NULL){
+     return &(group->addr_ptr_array); 
+  }else{
+     return NULL;
+  }
+}
+
+static ngx_http_conf_def_data_file_kv_pair_t*
+ngx_http_conf_def_get_data_file_kv_pair(ngx_array_t* group_ptr_array, size_t idx)
+{
+  char** data_ptrs = (char**)group_ptr_array->elts;
+  char*  ptr       = *(data_ptrs + idx);
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair =
+       (ngx_http_conf_def_data_file_kv_pair_t*)(ptr - offsetof(ngx_http_conf_def_data_file_kv_pair_t, shm_ptr));
+  return kv_pair;
+}
+
+ngx_str_t    
+ngx_http_conf_def_get_data_file_nickname(ngx_array_t* group_ptr_array, size_t idx)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair = ngx_http_conf_def_get_data_file_kv_pair(group_ptr_array, idx);
+  return kv_pair->nick_name;
+}
+
+u_char*      
+ngx_http_conf_def_get_data_file_ptr(ngx_array_t* group_ptr_array, size_t idx)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair = ngx_http_conf_def_get_data_file_kv_pair(group_ptr_array, idx);
+  return (u_char*)kv_pair->shm_ptr; 
+}
+
+

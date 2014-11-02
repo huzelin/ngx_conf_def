@@ -93,7 +93,7 @@ ngx_module_t ngx_http_conf_def_module={
   NGX_MODULE_V1_PADDING
 };
 
-static ngx_http_conf_def_t* global_cdf = NULL;
+ngx_http_conf_def_t* ngx_global_cdf = NULL;
 
 static void*
 ngx_http_conf_def_module_create_conf(ngx_conf_t* cf)
@@ -101,10 +101,10 @@ ngx_http_conf_def_module_create_conf(ngx_conf_t* cf)
   ngx_http_conf_def_t* cdf = ngx_pcalloc(cf->pool, sizeof(ngx_http_conf_def_t));
   if(cdf == NULL)
     return NULL;
-  if(global_cdf != NULL){
-    ngx_http_conf_def_detach_data_file(global_cdf);
+  if(ngx_global_cdf != NULL){
+    ngx_http_conf_def_detach_data_file(ngx_global_cdf);
   }
-  global_cdf = cdf;
+  ngx_global_cdf = cdf;
 
   ngx_rbtree_init(&(cdf->defs),        &(cdf->sentinel), ngx_str_rbtree_insert_value);
   ngx_rbtree_init(&(cdf->cfg_blocks),  &(cdf->sentinel), ngx_str_rbtree_insert_value);
@@ -230,5 +230,5 @@ ngx_http_conf_def_init_master(ngx_cycle_t* cycle)
 {
   ngx_http_conf_def_t *cdf = ngx_http_cycle_get_module_main_conf(cycle, ngx_http_conf_def_module);
   ngx_http_conf_def_detach_data_file(cdf);
-  global_cdf = NULL;
+  ngx_global_cdf = NULL;
 }

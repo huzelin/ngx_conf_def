@@ -71,7 +71,7 @@ ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool,
 
     if(ngx_http_conf_def_open_data_file(kv_pair) == NGX_ERROR) { /*** file corrupt ***/
       r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "file open %V failed!", &(kv_pair->file.name));
+      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "file open %V failed!", &(kv_pair->file.name));
       goto Next;
     }
     size_t shm_size       = ngx_file_size(&kv_pair->file.info);
@@ -79,25 +79,25 @@ ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool,
     void* shm_ptr;
     if(shm_id == -1){
       r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "shmget %d size(%d) failed", kv_pair->node.key, shm_size);
+      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmget %d size(%d) failed", kv_pair->node.key, shm_size);
       goto Next;
     }
     shm_ptr               = shmat(shm_id, NULL, 0);
     if((void*)shm_ptr == (void*)-1){
       r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "shmat failed");
+      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmat failed");
       goto Next;
     }
     if(shmctl(shm_id, IPC_RMID, NULL) == -1){
       r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "shmctl failed");
+      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmctl failed");
       goto Next;
     }
     
     if(aio == 0){ /// not use aio operation
       if(ngx_read_file(&kv_pair->file, shm_ptr, shm_size, 0) == NGX_ERROR){
         r1 = NGX_ERROR;
-        ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "ngx_read_file %V failed", &(kv_pair->file.name));
+        ngx_log_error(NGX_LOG_ERR, pool->log, 0, "ngx_read_file %V failed", &(kv_pair->file.name));
         goto Next;
       }
       /// shmdt shm and change version-related info
@@ -109,7 +109,7 @@ ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool,
       switch(r1)
       {
         case NGX_ERROR:
-          ngx_log_error(NGX_LOG_ERROR, pool->log, 0, "ngx_file_aio_read %V failed", &(kv_pair->file.name));
+          ngx_log_error(NGX_LOG_ERR, pool->log, 0, "ngx_file_aio_read %V failed", &(kv_pair->file.name));
           break;
         case NGX_AGAIN:
           {
