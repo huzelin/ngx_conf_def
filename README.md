@@ -1,6 +1,6 @@
 ngx_conf_def
 ============
-ngx_conf_def is a simple conf definition module for NginX, and brings "def", "use_def", "def_data_file_group", "def_data_file_path", "def_data_file" and "conf_def_reload_data_file_group" to Nginx config file. 
+ngx_conf_def is a simple conf definition module for NginX, and brings "**def**", "use_def", "def_data_file_group", "def_data_file_path", "def_data_file" and "conf_def_reload_data_file_group" to Nginx config file. 
 
 feature
 ==========================
