@@ -274,7 +274,7 @@ ngx_http_conf_def_reload_data_file_group_handler(ngx_http_request_t* r)
      group_name.len  = vv->len;;
   }
 
-ngx_log_stderr(0, "reload: %V", &group_name);
+  //ngx_log_stderr(0, "reload: %V", &group_name);
 
   rc = ngx_http_discard_request_body(r);
   if(rc != NGX_OK)
