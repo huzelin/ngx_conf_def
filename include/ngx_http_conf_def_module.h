@@ -77,12 +77,15 @@ typedef struct ngx_http_conf_def_s{
 
   ngx_rbtree_t       data_groups;
   ngx_uint_t         shm_large_version;
-  ngx_http_conf_def_data_group_t *curr_data_group;
-  ngx_int_t          index;  
+  ngx_http_conf_def_data_group_t *curr_data_group;  
 
   ngx_http_conf_def_shm_headers_t *shm_headers;
   ngx_event_t        attach_event;
 }ngx_http_conf_def_t;
+
+typedef struct ngx_http_conf_def_loc_s{
+  ngx_int_t          index;
+}ngx_http_conf_def_loc_t;
 
 extern char* ngx_http_conf_def(ngx_conf_t* cf, ngx_command_t* cmd, void* conf);
 extern char* ngx_http_conf_def_use(ngx_conf_t* cf, ngx_command_t* cmd, void* conf);

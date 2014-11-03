@@ -261,7 +261,8 @@ static ngx_int_t
 ngx_http_conf_def_reload_data_file_group_handler(ngx_http_request_t* r)
 {
   ngx_http_conf_def_t * cdf = ngx_http_get_module_main_conf(r, ngx_http_conf_def_module);
-  ngx_http_variable_value_t *vv = ngx_http_get_indexed_variable(r, cdf->index);
+  ngx_http_conf_def_loc_t *cdlf = ngx_http_get_module_loc_conf(r, ngx_http_conf_def_module);
+  ngx_http_variable_value_t *vv = ngx_http_get_indexed_variable(r, cdlf->index);
   ngx_str_t group_name = ngx_null_string; 
   ngx_str_t ret_ok = ngx_string("ok");
   ngx_str_t ret_fail = ngx_string("fail");
@@ -272,6 +273,8 @@ ngx_http_conf_def_reload_data_file_group_handler(ngx_http_request_t* r)
      group_name.data = vv->data;
      group_name.len  = vv->len;;
   }
+
+ngx_log_stderr(0, "reload: %V", &group_name);
 
   rc = ngx_http_discard_request_body(r);
   if(rc != NGX_OK)
@@ -299,9 +302,9 @@ ngx_http_conf_def_reload_data_file_group(ngx_conf_t* cf, ngx_command_t* cmd, voi
   ngx_http_core_loc_conf_t *clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
   clcf->handler = ngx_http_conf_def_reload_data_file_group_handler;
   
-  ngx_http_conf_def_t * cdf = (ngx_http_conf_def_t*)conf;
-  cdf->index = ngx_http_get_variable_index(cf, &ngx_http_conf_def_data_file_group_name);
-  if(cdf->index == NGX_ERROR)
+  ngx_http_conf_def_loc_t * cdlf = (ngx_http_conf_def_loc_t*)conf;
+  cdlf->index = ngx_http_get_variable_index(cf, &ngx_http_conf_def_data_file_group_name);
+  if(cdlf->index == NGX_ERROR)
     return NGX_CONF_ERROR;
   return NGX_OK; 
 }

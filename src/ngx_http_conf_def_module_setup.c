@@ -2,6 +2,7 @@
 #include "ngx_http_conf_def_api.h"
 
 static void* ngx_http_conf_def_module_create_conf(ngx_conf_t* cf);
+static void* ngx_http_conf_def_create_loc_conf(ngx_conf_t* cf);
 static ngx_int_t ngx_http_conf_def_module_postconfiguration(ngx_conf_t* cf);
 static ngx_int_t ngx_http_conf_def_init_module(ngx_cycle_t* cycle);
 static ngx_int_t ngx_http_conf_def_init_process(ngx_cycle_t* cycle);
@@ -49,7 +50,7 @@ static ngx_command_t ngx_http_conf_def_commands[]={
   { ngx_string("conf_def_reload_data_file_group"),
     NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
     ngx_http_conf_def_reload_data_file_group,
-    NGX_HTTP_MAIN_CONF_OFFSET,
+    NGX_HTTP_LOC_CONF_OFFSET,
     0,
     NULL},
   { ngx_string("echo_def"),
@@ -74,7 +75,7 @@ static ngx_http_module_t ngx_http_conf_def_module_ctx = {
   NULL,  
   NULL,
   NULL,
-  NULL,
+  ngx_http_conf_def_create_loc_conf,
   NULL
 };
 
@@ -111,6 +112,16 @@ ngx_http_conf_def_module_create_conf(ngx_conf_t* cf)
   ngx_rbtree_init(&(cdf->data_groups), &(cdf->sentinel), ngx_str_rbtree_insert_value);
    
   return cdf;
+}
+
+static void* 
+ngx_http_conf_def_create_loc_conf(ngx_conf_t* cf)
+{
+  ngx_http_conf_def_loc_t *cdlf = ngx_pcalloc(cf->pool, sizeof(ngx_http_conf_def_loc_t));
+  if(cdlf == NULL)
+    return NULL;
+  cdlf->index = -1;
+  return cdlf;
 }
 
 static void

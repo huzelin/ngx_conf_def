@@ -5,12 +5,14 @@ extern ngx_module_t ngx_http_conf_def_module;
 extern ngx_http_conf_def_t* ngx_global_cdf; 
 
 ngx_http_conf_def_cfg_block_kv_pair_t*
-ngx_http_conf_def_get_kv_pair(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key)
+ngx_http_conf_def_get_kv_pair(ngx_str_t section, ngx_str_t key)
 {
   uint32_t hash;
   ngx_http_conf_def_cfg_block_t* cfg_block = NULL;
   ngx_http_conf_def_cfg_block_kv_pair_t* kv_pair = NULL;
-  ngx_http_conf_def_t* cdf = (ngx_http_conf_def_t*)ngx_http_conf_get_module_main_conf(cf, ngx_http_conf_def_module);
+  ngx_http_conf_def_t* cdf = ngx_global_cdf;
+  if(cdf == NULL)
+    return NULL;
 
   hash = ngx_crc32_long(section.data, section.len);
   cfg_block = (ngx_http_conf_def_cfg_block_t*)ngx_str_rbtree_lookup(&cdf->cfg_blocks, &section, hash);
@@ -22,13 +24,13 @@ ngx_http_conf_def_get_kv_pair(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key)
 }
 
 ngx_str_t 
-ngx_http_conf_def_get_string(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key)
+ngx_http_conf_def_get_string(ngx_str_t section, ngx_str_t key)
 {
-  return ngx_http_conf_def_get_string_with_default(cf, section, key, NULL);
+  return ngx_http_conf_def_get_string_with_default(section, key, NULL);
 }
 
 ngx_str_t 
-ngx_http_conf_def_get_string_with_default(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key, const char *d)
+ngx_http_conf_def_get_string_with_default(ngx_str_t section, ngx_str_t key, const char *d)
 {
   ngx_str_t ret = ngx_null_string;
   ngx_http_conf_def_cfg_block_kv_pair_t* kv_pair;
@@ -38,7 +40,7 @@ ngx_http_conf_def_get_string_with_default(ngx_conf_t* cf, ngx_str_t section, ngx
     ret.len  = strlen(d);
   }
  
-  kv_pair = ngx_http_conf_def_get_kv_pair(cf, section, key);
+  kv_pair = ngx_http_conf_def_get_kv_pair(section, key);
   if(kv_pair != NULL && kv_pair->value.nelts > 0){
     ret = *(ngx_str_t*)kv_pair->value.elts;
   }
@@ -47,20 +49,20 @@ ngx_http_conf_def_get_string_with_default(ngx_conf_t* cf, ngx_str_t section, ngx
 }
 
 ngx_int_t 
-ngx_http_conf_def_get_int(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key)
+ngx_http_conf_def_get_int(ngx_str_t section, ngx_str_t key)
 {
-  return ngx_http_conf_def_get_int_with_default(cf, section, key, 0);
+  return ngx_http_conf_def_get_int_with_default(section, key, 0);
 }
 
 ngx_int_t 
-ngx_http_conf_def_get_int_with_default(ngx_conf_t* cf, ngx_str_t section, ngx_str_t key, ngx_int_t d)
+ngx_http_conf_def_get_int_with_default(ngx_str_t section, ngx_str_t key, ngx_int_t d)
 {
   ngx_str_t ret = ngx_null_string;
   ngx_http_conf_def_cfg_block_kv_pair_t* kv_pair;
   ngx_int_t ret_int = 0, flag = 1;
   size_t pos = 0;
 
-  kv_pair = ngx_http_conf_def_get_kv_pair(cf, section, key);
+  kv_pair = ngx_http_conf_def_get_kv_pair(section, key);
   if(kv_pair != NULL && kv_pair->value.nelts > 0){
     ret = *(ngx_str_t*)kv_pair->value.nelts;
   }else

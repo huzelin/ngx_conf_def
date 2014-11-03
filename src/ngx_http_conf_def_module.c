@@ -403,7 +403,7 @@ ngx_http_conf_def_echo_def_cfg(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
   ngx_str_t *value;
   value = cf->args->elts;
 
-  ngx_str_t ret = ngx_http_conf_def_get_string(cf, value[1], value[2]);
+  ngx_str_t ret = ngx_http_conf_def_get_string(value[1], value[2]);
   ngx_log_stderr(0, "-------%V:%V [begin]-------", value + 1, value + 2);
   ngx_log_stderr(0, "%V", &ret);
   ngx_log_stderr(0, "-------%V:%V [end  ]-------", value + 1, value + 2);
