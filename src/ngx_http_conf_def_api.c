@@ -145,7 +145,14 @@ ngx_http_conf_def_get_data_file_ptr(ngx_array_t* group_ptr_array, size_t idx)
   return (u_char*)kv_pair->shm_ptr; 
 }
 
-ngx_http_conf_def_data_file_kv_pair_t* 
+size_t       
+ngx_http_conf_def_get_data_file_size(ngx_array_t* group_ptr_array, size_t idx)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair = ngx_http_conf_def_get_data_file_kv_pair(group_ptr_array, idx);
+  return kv_pair->shm_size;
+}
+
+void* 
 ngx_http_conf_def_get_data_file_idx(ngx_str_t group_name, ngx_str_t data_file_nick_name, ngx_uint_t* idx)
 {
   ngx_http_conf_def_data_group_t* group = ngx_http_conf_def_get_group(group_name);
@@ -157,4 +164,60 @@ ngx_http_conf_def_get_data_file_idx(ngx_str_t group_name, ngx_str_t data_file_ni
     *idx  = kv_pair->addr_ptr_array_pos;
   }
   return kv_pair;
+}
+
+/// binary-data search algorithm
+ngx_str_t 
+ngx_http_conf_def_trie_match_longest(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query)
+{
+    ngx_str_t ret = ngx_null_string;
+    if(rkey == NULL || rvalue == NULL || query.data == NULL || query.len == 0)
+    {
+      return ret;
+    }
+    ngx_conf_def_trie_node_t *punits = (ngx_conf_def_trie_node_t*)rkey;
+    size_t unit_count = (ksize) / sizeof(ngx_conf_def_trie_node_t);
+
+    if(unit_count == 0)
+    {
+        return ret;
+    }
+    ngx_int_t iPos = 1;
+    ngx_int_t iMatchPos = iPos;
+    size_t  uMatchLen = 0;
+    size_t ui;
+
+    for(ui = 0; ui < query.len; ++ui)
+    {
+        int32_t iRelative = (int32_t)(query.data[ui]);
+        int32_t iNext = iPos + punits[iPos].ibase + iRelative;
+
+        if (iNext <= 0 || (uint32_t)(iNext) >= unit_count)
+        {
+            break;
+        }
+        if (iNext + punits[iNext].iprev != iPos)
+        {
+            break;
+        }
+        iPos = iNext;
+        if (punits[iPos].uvalue_len != 0)
+        {
+            uMatchLen   = ui + 1;
+            iMatchPos   = iPos;
+        }
+    }
+    if(uMatchLen > 0)
+    {
+        ret.data = rvalue + punits[iMatchPos].uvalue_pos;
+        ret.len  = punits[iMatchPos].uvalue_len;        
+        return ret;
+    }
+    return ret;  
+}
+
+uint32_t 
+ngx_http_conf_def_trie_match_path(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query, ngx_array_t* hits)
+{
+  return NGX_OK;
 }
