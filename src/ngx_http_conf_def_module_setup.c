@@ -94,7 +94,8 @@ ngx_module_t ngx_http_conf_def_module={
   NGX_MODULE_V1_PADDING
 };
 
-ngx_http_conf_def_t* ngx_global_cdf = NULL;
+ngx_http_conf_def_t* ngx_global_cdf              = NULL;
+static ngx_int_t ngx_conf_def_master_detach_header_flag = 0;
 
 static void*
 ngx_http_conf_def_module_create_conf(ngx_conf_t* cf)
@@ -102,15 +103,20 @@ ngx_http_conf_def_module_create_conf(ngx_conf_t* cf)
   ngx_http_conf_def_t* cdf = ngx_pcalloc(cf->pool, sizeof(ngx_http_conf_def_t));
   if(cdf == NULL)
     return NULL;
-  if(ngx_global_cdf != NULL){
-    ngx_http_conf_def_detach_data_file(ngx_global_cdf);
+
+  if(ngx_global_cdf != NULL){ /// nginx -s reload
+    if(ngx_conf_def_master_detach_header_flag){
+      ngx_http_conf_def_detach_data_file(ngx_global_cdf, 0x02);
+    }else{
+      ngx_http_conf_def_detach_data_file(ngx_global_cdf, 0x03);
+    }
+    ngx_conf_def_master_detach_header_flag = 0;
   }
   ngx_global_cdf = cdf;
 
   ngx_rbtree_init(&(cdf->defs),        &(cdf->sentinel), ngx_str_rbtree_insert_value);
   ngx_rbtree_init(&(cdf->cfg_blocks),  &(cdf->sentinel), ngx_str_rbtree_insert_value);
-  ngx_rbtree_init(&(cdf->data_groups), &(cdf->sentinel), ngx_str_rbtree_insert_value);
-   
+  ngx_rbtree_init(&(cdf->data_groups), &(cdf->sentinel), ngx_str_rbtree_insert_value); 
   return cdf;
 }
 
@@ -196,6 +202,7 @@ ngx_http_conf_def_init_module(ngx_cycle_t* cycle)
 
   ngx_http_conf_def_reload_data_file(cycle->pool, cdf, group_name, 0, NULL); 
   cdf->shm_large_version = cdf->shm_headers->shm_large_version;
+  
   return NGX_OK;
 }
 
@@ -218,8 +225,10 @@ ngx_http_conf_def_init_process(ngx_cycle_t* cycle)
   cdf->attach_event.handler = ngx_http_conf_def_attach_data_file_timer;
   cdf->attach_event.log     = cycle->log;
   cdf->attach_event.data    = cdf;
-  ngx_http_conf_def_attach_data_file(cdf);
-  ngx_add_timer(&cdf->attach_event, 1000); 
+
+  ngx_str_t group_name = ngx_null_string;
+  ngx_http_conf_def_reload_data_file(cycle->pool, cdf, group_name, 0, NULL);
+  ngx_add_timer(&cdf->attach_event, 1000);
   return NGX_OK;
 }
 
@@ -227,20 +236,20 @@ static void
 ngx_http_conf_def_exit_process(ngx_cycle_t* cycle)
 {
   ngx_http_conf_def_t *cdf = ngx_http_cycle_get_module_main_conf(cycle, ngx_http_conf_def_module);
-  ngx_http_conf_def_detach_data_file(cdf);  
+  ngx_http_conf_def_detach_data_file(cdf, 0x03);  
 }
 
 static void 
 ngx_http_conf_def_exit_master(ngx_cycle_t* cycle)
 {
   ngx_http_conf_def_t *cdf = ngx_http_cycle_get_module_main_conf(cycle, ngx_http_conf_def_module);
-  ngx_http_conf_def_detach_data_file(cdf);
+  ngx_http_conf_def_detach_data_file(cdf, 0x02);
 }
 
 static ngx_int_t 
 ngx_http_conf_def_init_master(ngx_cycle_t* cycle)
 {
   ngx_http_conf_def_t *cdf = ngx_http_cycle_get_module_main_conf(cycle, ngx_http_conf_def_module);
-  ngx_http_conf_def_detach_data_file(cdf);
-  ngx_global_cdf = NULL;
+  ngx_http_conf_def_detach_data_file(cdf, 0x01);
+  ngx_conf_def_master_detach_header_flag =1;
 }

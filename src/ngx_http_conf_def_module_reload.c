@@ -181,7 +181,7 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
     void *shm_ptr = NULL;
   
     ngx_shmtx_lock(&cdf->shm_headers->mutex);
-    if(kv_pair->shm_version == shm_header_ptr->shm_version){
+    if(kv_pair->shm_version >= shm_header_ptr->shm_version){
        r1 = NGX_OK;
        ngx_shmtx_unlock(&cdf->shm_headers->mutex);
        goto Next;
@@ -256,10 +256,12 @@ ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf)
 }
 
 ngx_int_t 
-ngx_http_conf_def_detach_data_file(ngx_http_conf_def_t* cdf)
+ngx_http_conf_def_detach_data_file(ngx_http_conf_def_t* cdf, ngx_int_t detach_flag)
 {
-  ngx_int_t r = ngx_http_conf_def_detach_data_file_impl(cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1);
-  if(cdf->shm_headers != NULL && shmdt(cdf->shm_headers) == -1)
+  ngx_int_t r = NGX_OK;
+  if(detach_flag & 0x01)
+    r = ngx_http_conf_def_detach_data_file_impl(cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1);
+  if((detach_flag & 0x02) && cdf->shm_headers != NULL && shmdt(cdf->shm_headers) == -1)
     r = NGX_ERROR; 
   return r;
 }

@@ -101,7 +101,7 @@ extern char* ngx_http_conf_def_data_file(ngx_conf_t* cf, ngx_command_t* cmd, voi
 extern ngx_int_t 
 ngx_http_conf_def_reload_data_file(ngx_pool_t* pool, ngx_http_conf_def_t* cdf, ngx_str_t group_name, ngx_int_t aio, ngx_http_request_t *r);
 extern ngx_int_t ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf);
-extern ngx_int_t ngx_http_conf_def_detach_data_file(ngx_http_conf_def_t* cdf);
+extern ngx_int_t ngx_http_conf_def_detach_data_file(ngx_http_conf_def_t* cdf, ngx_int_t detach_flag);
 
 extern char* ngx_http_conf_def_reload_data_file_group(ngx_conf_t* cf, ngx_command_t* cmd, void* conf);
 
