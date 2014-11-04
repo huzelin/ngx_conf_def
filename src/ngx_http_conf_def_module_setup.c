@@ -218,6 +218,7 @@ ngx_http_conf_def_init_process(ngx_cycle_t* cycle)
   cdf->attach_event.handler = ngx_http_conf_def_attach_data_file_timer;
   cdf->attach_event.log     = cycle->log;
   cdf->attach_event.data    = cdf;
+  ngx_http_conf_def_attach_data_file(cdf);
   ngx_add_timer(&cdf->attach_event, 1000); 
   return NGX_OK;
 }
