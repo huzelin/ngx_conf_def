@@ -181,6 +181,12 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
     void *shm_ptr = NULL;
   
     ngx_shmtx_lock(&cdf->shm_headers->mutex);
+    if(kv_pair->shm_version == shm_header_ptr->shm_version){
+       r1 = NGX_OK;
+       ngx_shmtx_unlock(&cdf->shm_headers->mutex);
+       goto Next;
+    }
+
     shm_ptr               = shmat(shm_header_ptr->shm_id, NULL, 0);
     if((void*)shm_ptr == (void*)-1){
       r1 = NGX_ERROR;
@@ -242,7 +248,8 @@ ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf)
 {
   if(cdf->shm_large_version != cdf->shm_headers->shm_large_version){
     ngx_int_t r1 = ngx_http_conf_def_attach_data_file_impl(cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1);
-    cdf->shm_large_version = cdf->shm_headers->shm_large_version;
+    if(r1 == NGX_OK)
+      cdf->shm_large_version = cdf->shm_headers->shm_large_version;
     return r1;
   }
   return NGX_OK;
