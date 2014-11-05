@@ -168,56 +168,127 @@ ngx_http_conf_def_get_data_file_idx(ngx_str_t group_name, ngx_str_t data_file_ni
 
 /// binary-data search algorithm
 ngx_str_t 
-ngx_http_conf_def_trie_match_longest(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query)
+ngx_http_conf_def_trie_match_longest(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query, size_t* match_len)
 {
-    ngx_str_t ret = ngx_null_string;
-    if(rkey == NULL || rvalue == NULL || query.data == NULL || query.len == 0)
-    {
-      return ret;
-    }
-    ngx_conf_def_trie_node_t *punits = (ngx_conf_def_trie_node_t*)rkey;
-    size_t unit_count = (ksize) / sizeof(ngx_conf_def_trie_node_t);
+  ngx_str_t ret = ngx_null_string;
+  if(rkey == NULL || rvalue == NULL || query.data == NULL || query.len == 0)
+  {
+    return ret;
+  }
+  ngx_conf_def_trie_node_t *punits = (ngx_conf_def_trie_node_t*)rkey;
+  size_t unit_count = (ksize) / sizeof(ngx_conf_def_trie_node_t);
 
-    if(unit_count == 0)
-    {
-        return ret;
-    }
-    ngx_int_t iPos = 1;
-    ngx_int_t iMatchPos = iPos;
-    size_t  uMatchLen = 0;
-    size_t ui;
+  if(unit_count == 0)
+  {
+    return ret;
+  }
+  ngx_int_t iPos = 1;
+  ngx_int_t iMatchPos = iPos;
+  *match_len = 0;
+  size_t ui;
 
-    for(ui = 0; ui < query.len; ++ui)
-    {
-        int32_t iRelative = (int32_t)(query.data[ui]);
-        int32_t iNext = iPos + punits[iPos].ibase + iRelative;
+  for(ui = 0; ui < query.len; ++ui)
+  {
+    int32_t iRelative = (int32_t)(query.data[ui]);
+    int32_t iNext = iPos + punits[iPos].ibase + iRelative;
 
-        if (iNext <= 0 || (uint32_t)(iNext) >= unit_count)
-        {
-            break;
-        }
-        if (iNext + punits[iNext].iprev != iPos)
-        {
-            break;
-        }
-        iPos = iNext;
-        if (punits[iPos].uvalue_len != 0)
-        {
-            uMatchLen   = ui + 1;
-            iMatchPos   = iPos;
-        }
-    }
-    if(uMatchLen > 0)
+    if(iNext <= 0 || (uint32_t)(iNext) >= unit_count)
     {
-        ret.data = rvalue + punits[iMatchPos].uvalue_pos;
-        ret.len  = punits[iMatchPos].uvalue_len;        
-        return ret;
+      break;
     }
-    return ret;  
+    if(iNext + punits[iNext].iprev != iPos)
+    {
+      break;
+    }
+    iPos = iNext;
+    if(punits[iPos].uvalue_len != 0)
+    {
+       *match_len  = ui + 1;
+       iMatchPos   = iPos;
+    }
+  }
+  if(*match_len > 0)
+  {
+     ret.data = rvalue + punits[iMatchPos].uvalue_pos;
+     ret.len  = punits[iMatchPos].uvalue_len;        
+     return ret;
+  }
+  return ret;  
 }
 
-uint32_t 
+ngx_uint_t
 ngx_http_conf_def_trie_match_path(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query, ngx_array_t* hits)
 {
-  return NGX_OK;
+  if(rkey == NULL || rvalue == NULL || query.data == NULL || query.len == 0 || hits == NULL)
+  {
+    return 0;
+  }
+  ngx_conf_def_trie_node_t *punits = (ngx_conf_def_trie_node_t*)rkey;
+  size_t unit_count = (ksize) / sizeof(ngx_conf_def_trie_node_t);
+
+  if(unit_count == 0)
+  {
+    return 0;
+  }
+  ngx_int_t iPos = 1;
+  size_t ui;
+
+  for(ui = 0; ui < query.len; ++ui)
+  {
+    int32_t iRelative = (int32_t)(query.data[ui]);
+    int32_t iNext = iPos + punits[iPos].ibase + iRelative;
+
+    if(iNext <= 0 || (uint32_t)(iNext) >= unit_count)
+    {
+       break;
+    }
+    if(iNext + punits[iNext].iprev != iPos)
+    {
+       break;
+    }
+    iPos = iNext;
+    if(punits[iPos].uvalue_len != 0)
+    {
+      ngx_str_t* new_str = ngx_array_push(hits);
+      new_str->data = rvalue + punits[iPos].uvalue_pos;
+      new_str->len  = punits[iPos].uvalue_len;
+    }
+  }
+  return hits->nelts;
+}
+
+ngx_uint_t 
+ngx_http_conf_def_trie_match_all(u_char *rkey, size_t ksize, u_char *rvalue, ngx_str_t query, ngx_array_t* hits)
+{
+  if(rkey == NULL || rvalue == NULL || query.data == NULL || query.len == 0 || hits == NULL)
+  {
+    return 0;
+  }
+  size_t ui;
+  for(ui = 0; ui < query.len; ++ui)
+  {
+    ngx_str_t sub_str, ret;
+    size_t match_len;
+
+    sub_str.data = query.data + ui;
+    sub_str.len  = query.len - ui;
+    ret = ngx_http_conf_def_trie_match_longest(rkey, ksize, rvalue, sub_str, &match_len);
+
+    if(ret.data != NULL)
+    {
+       ngx_conf_def_trie_match_info_t *match_info = (ngx_conf_def_trie_match_info_t*)ngx_array_push(hits); 
+       match_info->umatch_pos = ui;
+       match_info->umatch_len = match_len;
+       match_info->uvalue     = (const u_char *)ret.data;
+       match_info->uvalue_len = ret.len;
+       match_info->ioparg     = -1;
+       
+       ui += match_len;
+    }
+    else
+    {
+       ++ui;
+    }
+  }
+  return hits->nelts;
 }
