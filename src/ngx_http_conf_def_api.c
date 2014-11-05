@@ -292,3 +292,49 @@ ngx_http_conf_def_trie_match_all(u_char *rkey, size_t ksize, u_char *rvalue, ngx
   }
   return hits->nelts;
 }
+
+static ngx_str_t suffix_key   = ngx_string(".key");
+static ngx_str_t suffix_value = ngx_string(".value");
+
+ngx_int_t  
+ngx_http_conf_def_init_trie(ngx_conf_def_trie_t* trie, ngx_str_t group_name, ngx_str_t nick_name_key, ngx_str_t nick_name_value)
+{
+  trie->group_name = group_name;
+  ngx_uint_t idx;
+
+  trie->nick_name_key = nick_name_key;
+  trie->kv_pair_rkey = ngx_http_conf_def_get_data_file_idx(group_name, trie->nick_name_key, &idx);
+
+  trie->nick_name_value = nick_name_value;
+  trie->kv_pair_rvalue = ngx_http_conf_def_get_data_file_idx(group_name, trie->nick_name_value, &idx); 
+  return NGX_OK;
+}
+
+ngx_str_t  
+ngx_http_conf_def_trie_stru_match_longest(ngx_conf_def_trie_t* trie, ngx_str_t query, size_t* match_len)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rkey = trie->kv_pair_rkey;
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rvalue = trie->kv_pair_rvalue;
+
+  return ngx_http_conf_def_trie_match_longest(kv_pair_rkey->shm_ptr, kv_pair_rkey->shm_size, kv_pair_rvalue->shm_ptr, query, match_len);  
+}
+
+ngx_uint_t 
+ngx_http_conf_def_trie_stru_match_path(ngx_conf_def_trie_t* trie, ngx_str_t query, ngx_array_t* hits)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rkey = trie->kv_pair_rkey;
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rvalue = trie->kv_pair_rvalue;
+
+  return ngx_http_conf_def_trie_match_path(kv_pair_rkey->shm_ptr, kv_pair_rkey->shm_size, kv_pair_rvalue->shm_ptr, query, hits);
+}
+
+ngx_uint_t 
+ngx_http_conf_def_trie_stru_match_all(ngx_conf_def_trie_t* trie, ngx_str_t query, ngx_array_t* hits)
+{
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rkey = trie->kv_pair_rkey;
+  ngx_http_conf_def_data_file_kv_pair_t *kv_pair_rvalue = trie->kv_pair_rvalue;
+
+  return ngx_http_conf_def_trie_match_all(kv_pair_rkey->shm_ptr, kv_pair_rkey->shm_size, kv_pair_rvalue->shm_ptr, query, hits);
+}
+
+
