@@ -26,18 +26,88 @@ ngx_http_conf_def_aio_handler(ngx_event_t *ev)
    aio_pack->r->aio = 0;
 
    if(aio_pack->r->main->blocked == 0){
-     aio_pack->cdf->shm_large_version++;
-
-     ngx_shmtx_lock(&aio_pack->cdf->shm_headers->mutex);
-     aio_pack->cdf->shm_headers->shm_large_version++;
-     ngx_shmtx_unlock(&aio_pack->cdf->shm_headers->mutex);
-
      ngx_http_conf_def_aio_write_event_handler(aio_pack->r);
    }
 }
 
+static ngx_int_t
+ngx_http_conf_def_read_file(ngx_log_t* log,
+                            ngx_http_conf_def_t* cdf,
+                            ngx_http_conf_def_data_file_kv_pair_t* kv_pair, 
+                            ngx_http_conf_def_shm_header_t* shm_header_ptr,
+                            ngx_int_t aio,
+                            ngx_http_request_t* r)
+{
+  ngx_int_t r1 = NGX_OK;
+
+  if(ngx_http_conf_def_open_data_file(kv_pair) == NGX_ERROR) { /*** file corrupt ***/
+    r1 = NGX_ERROR;
+    ngx_log_error(NGX_LOG_ERR, log, 0, "file open %V failed!", &(kv_pair->file.name));
+    goto Next;
+  }
+  size_t shm_size       = ngx_file_size(&kv_pair->file.info);
+  int shm_id            = shmget(kv_pair->node.key, shm_size, (SHM_R|SHM_W|IPC_CREAT));
+  void* shm_ptr;
+  if(shm_id == -1){
+    r1 = NGX_ERROR;
+    ngx_log_error(NGX_LOG_ERR, log, 0, "shmget %d size(%d) failed", kv_pair->node.key, shm_size);
+    goto Next;
+  }
+  shm_ptr               = shmat(shm_id, NULL, 0);
+  if((void*)shm_ptr == (void*)-1){
+    r1 = NGX_ERROR;
+    ngx_log_error(NGX_LOG_ERR, log, 0, "shmat failed");
+    goto Next;
+  }
+  if(shmctl(shm_id, IPC_RMID, NULL) == -1){
+    r1 = NGX_ERROR;
+    ngx_log_error(NGX_LOG_ERR, log, 0, "shmctl failed");
+    goto Next;
+  }
+  
+  if(aio == 0){ /// not use aio operation
+    if(ngx_read_file(&kv_pair->file, shm_ptr, shm_size, 0) == NGX_ERROR){
+      r1 = NGX_ERROR;
+      ngx_log_error(NGX_LOG_ERR, log, 0, "ngx_read_file %V failed", &(kv_pair->file.name));
+      goto Next;
+    }
+    /// shmdt shm and change version-related info
+    NGX_HTTP_CONF_DEF_FIN_PACK_DATA  
+  }else{ /// can use aio operation
+    kv_pair->file.log  = log;
+    kv_pair->file.aio  = NULL;
+    r1 = ngx_file_aio_read(&kv_pair->file, shm_ptr, shm_size, 0, r->pool);
+    switch(r1)
+    {
+      case NGX_ERROR:
+        ngx_log_error(NGX_LOG_ERR, log, 0, "ngx_file_aio_read %V failed", &(kv_pair->file.name));
+        break;
+      case NGX_AGAIN:
+        {
+          NGX_HTTP_CONF_DEF_AIO_PACK_DATA(kv_pair, cdf, shm_header_ptr, shm_ptr, shm_size, shm_id, r);
+#if (NGX_HAVE_FILE_AIO)
+          kv_pair->file.aio->handler = ngx_http_conf_def_aio_handler;
+          kv_pair->file.aio->data    = aio_pack; 
+          r->aio  = 1;
+#endif
+        }
+        break;
+      default: //success
+        {
+          /// shmdt shm and change version-related info
+          NGX_HTTP_CONF_DEF_FIN_PACK_DATA
+          r1 = NGX_OK;
+        }
+        break; 
+    }
+  }
+
+Next:
+  return r1;
+}
+
 static ngx_int_t 
-ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool, 
+ngx_http_conf_def_reload_data_file_impl(ngx_log_t* log,
                                         ngx_http_conf_def_t* cdf,
                                         ngx_rbtree_node_t* root, 
                                         ngx_rbtree_node_t* sentinel, 
@@ -58,8 +128,7 @@ ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool,
         ngx_strncmp(group->group_name.data, group_name->data, group_name->len) == 0) )
     {
 
-      r1 = ngx_http_conf_def_reload_data_file_impl(pool, 
-                                                   cdf, 
+      r1 = ngx_http_conf_def_reload_data_file_impl(log, cdf, 
                                                    group->kv_pairs.root, 
                                                    group->kv_pairs.sentinel, 
                                                    group_name, 0, aio, r);        
@@ -69,72 +138,12 @@ ngx_http_conf_def_reload_data_file_impl(ngx_pool_t* pool,
     ngx_http_conf_def_data_file_kv_pair_t* kv_pair = (ngx_http_conf_def_data_file_kv_pair_t*)root;
     ngx_http_conf_def_shm_header_t* shm_header_ptr = cdf->shm_headers->headers + kv_pair->shm_header_pos;  
 
-    if(ngx_http_conf_def_open_data_file(kv_pair) == NGX_ERROR) { /*** file corrupt ***/
-      r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "file open %V failed!", &(kv_pair->file.name));
-      goto Next;
-    }
-    size_t shm_size       = ngx_file_size(&kv_pair->file.info);
-    int shm_id            = shmget(kv_pair->node.key, shm_size, (SHM_R|SHM_W|IPC_CREAT));
-    void* shm_ptr;
-    if(shm_id == -1){
-      r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmget %d size(%d) failed", kv_pair->node.key, shm_size);
-      goto Next;
-    }
-    shm_ptr               = shmat(shm_id, NULL, 0);
-    if((void*)shm_ptr == (void*)-1){
-      r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmat failed");
-      goto Next;
-    }
-    if(shmctl(shm_id, IPC_RMID, NULL) == -1){
-      r1 = NGX_ERROR;
-      ngx_log_error(NGX_LOG_ERR, pool->log, 0, "shmctl failed");
-      goto Next;
-    }
-    
-    if(aio == 0){ /// not use aio operation
-      if(ngx_read_file(&kv_pair->file, shm_ptr, shm_size, 0) == NGX_ERROR){
-        r1 = NGX_ERROR;
-        ngx_log_error(NGX_LOG_ERR, pool->log, 0, "ngx_read_file %V failed", &(kv_pair->file.name));
-        goto Next;
-      }
-      /// shmdt shm and change version-related info
-      NGX_HTTP_CONF_DEF_FIN_PACK_DATA  
-    }else{ /// can use aio operation
-      kv_pair->file.log  = pool->log;
-      kv_pair->file.aio  = NULL;
-      r1 = ngx_file_aio_read(&kv_pair->file, shm_ptr, shm_size, 0, pool);
-      switch(r1)
-      {
-        case NGX_ERROR:
-          ngx_log_error(NGX_LOG_ERR, pool->log, 0, "ngx_file_aio_read %V failed", &(kv_pair->file.name));
-          break;
-        case NGX_AGAIN:
-          {
-            NGX_HTTP_CONF_DEF_AIO_PACK_DATA(pool, kv_pair, cdf, shm_header_ptr, shm_ptr, shm_size, shm_id, r);
-#if (NGX_HAVE_FILE_AIO)
-            kv_pair->file.aio->handler = ngx_http_conf_def_aio_handler;
-            kv_pair->file.aio->data    = aio_pack; 
-            r->aio  = 1;
-#endif
-          }
-          break;
-        default: //success
-          {
-            /// shmdt shm and change version-related info
-            NGX_HTTP_CONF_DEF_FIN_PACK_DATA
-            r1 = NGX_OK;
-          }
-          break; 
-      }
-    }
+    r1 = ngx_http_conf_def_read_file(log, cdf, kv_pair, shm_header_ptr, aio, r);
   }
 
 Next:
-  r2 = ngx_http_conf_def_reload_data_file_impl(pool, cdf, root->left,  sentinel, group_name, is_group, aio, r);
-  r3 = ngx_http_conf_def_reload_data_file_impl(pool, cdf, root->right, sentinel, group_name, is_group, aio, r);
+  r2 = ngx_http_conf_def_reload_data_file_impl(log, cdf, root->left,  sentinel, group_name, is_group, aio, r);
+  r3 = ngx_http_conf_def_reload_data_file_impl(log, cdf, root->right, sentinel, group_name, is_group, aio, r);
 
   if(r1 == NGX_AGAIN || r2 == NGX_AGAIN || r3 == NGX_AGAIN)
     return NGX_AGAIN;
@@ -148,24 +157,19 @@ Next:
 ngx_int_t 
 ngx_http_conf_def_reload_data_file(ngx_pool_t* pool, ngx_http_conf_def_t* cdf, ngx_str_t group_name, ngx_int_t aio, ngx_http_request_t *r)
 {
-  ngx_int_t rc = ngx_http_conf_def_reload_data_file_impl(pool, cdf, cdf->data_groups.root, 
-                             cdf->data_groups.sentinel, &group_name, 1, aio, r);
-
-  if(rc != NGX_AGAIN){
-    cdf->shm_large_version++;
-    ngx_shmtx_lock(&cdf->shm_headers->mutex);
-    cdf->shm_headers->shm_large_version++;
-    ngx_shmtx_unlock(&cdf->shm_headers->mutex); 
-  }else{
-     
-  }
-
+  ngx_int_t rc = ngx_http_conf_def_reload_data_file_impl(pool->log, cdf, cdf->data_groups.root, 
+                                                         cdf->data_groups.sentinel, &group_name, 1, aio, r);
   return rc;
 }
 
+/// must be sync
 static ngx_int_t 
-ngx_http_conf_def_attach_data_file_impl(ngx_http_conf_def_t* cdf,
-ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
+ngx_http_conf_def_attach_data_file_impl(ngx_log_t* log,
+                                        ngx_http_conf_def_t* cdf,
+                                        ngx_rbtree_node_t* root, 
+                                        ngx_rbtree_node_t* sentinel, 
+                                        ngx_int_t is_group,
+                                        ngx_int_t first_attach)
 {
   ngx_int_t r1,r2,r3;
   if(root == sentinel)
@@ -174,14 +178,14 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
   r1 = r2 = r3 = NGX_OK;
   if(is_group){
     ngx_http_conf_def_data_group_t* group = (ngx_http_conf_def_data_group_t*)root;
-    r1 = ngx_http_conf_def_attach_data_file_impl(cdf, group->kv_pairs.root, group->kv_pairs.sentinel, 0);
+    r1 = ngx_http_conf_def_attach_data_file_impl(log, cdf, group->kv_pairs.root, group->kv_pairs.sentinel, 0, first_attach);
   }else{
     ngx_http_conf_def_data_file_kv_pair_t* kv_pair = (ngx_http_conf_def_data_file_kv_pair_t*)root;
     ngx_http_conf_def_shm_header_t* shm_header_ptr = cdf->shm_headers->headers + kv_pair->shm_header_pos;  
     void *shm_ptr = NULL;
   
     ngx_shmtx_lock(&cdf->shm_headers->mutex);
-    if(kv_pair->shm_version >= shm_header_ptr->shm_version){
+    if(!first_attach && kv_pair->shm_version >= shm_header_ptr->shm_version){
        r1 = NGX_OK;
        ngx_shmtx_unlock(&cdf->shm_headers->mutex);
        goto Next;
@@ -189,8 +193,9 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
 
     shm_ptr               = shmat(shm_header_ptr->shm_id, NULL, 0);
     if((void*)shm_ptr == (void*)-1){
-      r1 = NGX_ERROR;
       ngx_shmtx_unlock(&cdf->shm_headers->mutex);
+      ngx_log_error(NGX_LOG_WARN, cdf->attach_event.log, 0, "attach shm: %V failed, begin read from file", &kv_pair->file.name); 
+      r1 = ngx_http_conf_def_read_file(log, cdf, kv_pair, shm_header_ptr, 0, NULL);
       goto Next;
     }
 
@@ -205,8 +210,8 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
   }
 
 Next:
-  r2 = ngx_http_conf_def_attach_data_file_impl(cdf, root->left,  sentinel, is_group);
-  r3 = ngx_http_conf_def_attach_data_file_impl(cdf, root->right, sentinel, is_group);
+  r2 = ngx_http_conf_def_attach_data_file_impl(log, cdf, root->left,  sentinel, is_group, first_attach);
+  r3 = ngx_http_conf_def_attach_data_file_impl(log, cdf, root->right, sentinel, is_group, first_attach);
 
   if(r1 != NGX_OK || r2 != NGX_OK || r3 != NGX_OK)
     return NGX_ERROR;
@@ -227,11 +232,11 @@ ngx_rbtree_node_t* root, ngx_rbtree_node_t* sentinel, ngx_int_t is_group)
     r1 = ngx_http_conf_def_detach_data_file_impl(cdf, group->kv_pairs.root, group->kv_pairs.sentinel, 0);
   }else{
     ngx_http_conf_def_data_file_kv_pair_t* kv_pair = (ngx_http_conf_def_data_file_kv_pair_t*)root;
-    //ngx_http_conf_def_shm_header_t* shm_header_ptr = cdf->shm_headers->headers + kv_pair->shm_header_pos;
-   
     if(kv_pair->shm_ptr != NULL && shmdt(kv_pair->shm_ptr) == -1){
       r1 = NGX_ERROR;
     }
+    kv_pair->shm_ptr     = NULL;
+    kv_pair->shm_version = 0;
   }
 
 Next:
@@ -244,15 +249,11 @@ Next:
 }
 
 ngx_int_t 
-ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf)
+ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf, ngx_int_t first_attach)
 {
-  if(cdf->shm_large_version != cdf->shm_headers->shm_large_version){
-    ngx_int_t r1 = ngx_http_conf_def_attach_data_file_impl(cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1);
-    if(r1 == NGX_OK)
-      cdf->shm_large_version = cdf->shm_headers->shm_large_version;
-    return r1;
-  }
-  return NGX_OK;
+  ngx_int_t r1 = ngx_http_conf_def_attach_data_file_impl(cdf->attach_event.log, 
+                                           cdf, cdf->data_groups.root, cdf->data_groups.sentinel, 1, first_attach);
+  return r1;
 }
 
 ngx_int_t 

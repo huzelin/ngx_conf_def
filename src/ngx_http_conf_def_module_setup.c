@@ -194,15 +194,13 @@ ngx_http_conf_def_init_module(ngx_cycle_t* cycle)
   if(file == NULL){
      return NGX_ERROR;
   }
-  (void) ngx_sprintf(file, "%V.conf_def%Z", &cycle->lock_file);
+  (void)ngx_sprintf(file, "%V.conf_def%Z", &cycle->lock_file);
 #endif
 
   if(ngx_shmtx_create(&cdf->shm_headers->mutex, &cdf->shm_headers->lock, file) != NGX_OK)
     return NGX_ERROR;
 
   ngx_http_conf_def_reload_data_file(cycle->pool, cdf, group_name, 0, NULL); 
-  cdf->shm_large_version = cdf->shm_headers->shm_large_version;
-  
   return NGX_OK;
 }
 
@@ -212,7 +210,7 @@ static void
 ngx_http_conf_def_attach_data_file_timer(ngx_event_t* ev)
 {
   ngx_http_conf_def_t* cdf = (ngx_http_conf_def_t*)ev->data;
-  ngx_http_conf_def_attach_data_file(cdf);
+  ngx_http_conf_def_attach_data_file(cdf, 0);
   if(ngx_exiting != 1)
     ngx_add_timer(&cdf->attach_event, 1000);
 }
@@ -226,8 +224,8 @@ ngx_http_conf_def_init_process(ngx_cycle_t* cycle)
   cdf->attach_event.log     = cycle->log;
   cdf->attach_event.data    = cdf;
 
-  ngx_str_t group_name = ngx_null_string;
-  ngx_http_conf_def_reload_data_file(cycle->pool, cdf, group_name, 0, NULL);
+  /// +++ first attach, do not version filter.
+  ngx_http_conf_def_attach_data_file(cdf, 1);
   ngx_add_timer(&cdf->attach_event, 1000);
   return NGX_OK;
 }

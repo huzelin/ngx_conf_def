@@ -65,7 +65,6 @@ typedef struct ngx_http_conf_def_shm_headers_s{
   ngx_shmtx_sh_t    lock;
   size_t            header_shm_size;
   size_t            data_shm_size;
-  ngx_uint_t        shm_large_version;
   ngx_http_conf_def_shm_header_t headers[0];
 }ngx_http_conf_def_shm_headers_t;
 
@@ -76,7 +75,6 @@ typedef struct ngx_http_conf_def_s{
   ngx_rbtree_node_t  sentinel;
 
   ngx_rbtree_t       data_groups;
-  ngx_uint_t         shm_large_version;
   ngx_http_conf_def_data_group_t *curr_data_group;  
 
   ngx_http_conf_def_shm_headers_t *shm_headers;
@@ -100,7 +98,7 @@ extern char* ngx_http_conf_def_data_file(ngx_conf_t* cf, ngx_command_t* cmd, voi
 
 extern ngx_int_t 
 ngx_http_conf_def_reload_data_file(ngx_pool_t* pool, ngx_http_conf_def_t* cdf, ngx_str_t group_name, ngx_int_t aio, ngx_http_request_t *r);
-extern ngx_int_t ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf);
+extern ngx_int_t ngx_http_conf_def_attach_data_file(ngx_http_conf_def_t* cdf, ngx_int_t first_attch);
 extern ngx_int_t ngx_http_conf_def_detach_data_file(ngx_http_conf_def_t* cdf, ngx_int_t detach_flag);
 
 extern char* ngx_http_conf_def_reload_data_file_group(ngx_conf_t* cf, ngx_command_t* cmd, void* conf);
@@ -117,8 +115,8 @@ typedef struct ngx_conf_def_aio_pack_s{
   ngx_http_request_t *r;
 }ngx_conf_def_aio_pack_t;
 
-#define NGX_HTTP_CONF_DEF_AIO_PACK_DATA(pool,kv_pair,cdf,shm_header_ptr,shm_ptr,shm_size,shm_id, r) \
-ngx_conf_def_aio_pack_t* aio_pack = ngx_pcalloc(pool, sizeof(ngx_conf_def_aio_pack_t)); \
+#define NGX_HTTP_CONF_DEF_AIO_PACK_DATA(kv_pair,cdf,shm_header_ptr,shm_ptr,shm_size,shm_id, r) \
+ngx_conf_def_aio_pack_t* aio_pack = ngx_pcalloc(r->pool, sizeof(ngx_conf_def_aio_pack_t)); \
 aio_pack->kv_pair = kv_pair; \
 aio_pack->cdf = cdf; \
 aio_pack->shm_header_ptr = shm_header_ptr; \
