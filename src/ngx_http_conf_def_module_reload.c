@@ -302,7 +302,7 @@ ngx_http_conf_def_reload_data_file_group_handler(ngx_http_request_t* r)
     case NGX_AGAIN:
       return NGX_AGAIN;
   }
-  return rc;
+  return NGX_OK;
 }
 
 static ngx_str_t ngx_http_conf_def_data_file_group_name = ngx_string("reload_data_file_group");
