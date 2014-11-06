@@ -65,7 +65,7 @@ ngx_http_conf_def_read_file(ngx_log_t* log,
     goto Next;
   }
   
-  if(aio == 0){ /// not use aio operation
+  if(aio == 0 || r->main->blocked == 255){ /// do not use aio operation
     if(ngx_read_file(&kv_pair->file, shm_ptr, shm_size, 0) == NGX_ERROR){
       r1 = NGX_ERROR;
       ngx_log_error(NGX_LOG_ERR, log, 0, "ngx_read_file %V failed", &(kv_pair->file.name));
